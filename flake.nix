@@ -45,33 +45,24 @@
           deviceName = "pixel_9";
         };
 
-        flutterDevPkg = pkgs.writeShellApplication {
-          name = "flutter-dev";
-          runtimeInputs = with pkgs; [
-            flutter
-            emulatorPkg
-            androidSdk
-            jdk17
-          ];
-          text = ''
-            set -euo pipefail
+        flutterDevPkg = pkgs.writeShellScriptBin "flutter-dev" ''
+          set -euo pipefail
 
-            export ANDROID_SDK_ROOT="''${ANDROID_SDK_ROOT:-${androidSdk}/libexec/android-sdk}"
+          export ANDROID_SDK_ROOT="''${ANDROID_SDK_ROOT:-${androidSdk}/libexec/android-sdk}"
 
-            echo "Starting emulator..."
-            "${emulatorPkg}/bin/run-test-emulator" > /dev/null 2>&1 &
-            emulator_pid=$!
-            trap 'kill $emulator_pid' EXIT
+          echo "Starting emulator..."
+          "${emulatorPkg}/bin/run-test-emulator" > /dev/null 2>&1 &
+          emulator_pid=$!
+          trap 'kill $emulator_pid' EXIT
 
-            echo "Waiting for emulator to boot..."
-            while ! adb wait-for-device shell getprop sys.boot_completed | grep -q "1"; do
-            sleep 1
-            done
+          echo "Waiting for emulator to boot..."
+          while ! adb wait-for-device shell getprop sys.boot_completed | grep -q "1"; do
+          sleep 1
+          done
 
-            echo "Emulator booted, running Flutter..."
-            exec flutter run
-          '';
-        };
+          echo "Emulator booted, running Flutter..."
+          exec flutter run
+        '';
       in {
         devShell =
           with pkgs; mkShell rec {
@@ -80,8 +71,10 @@
               flutter
               androidSdk # The customized SDK that we've made above
               jdk17
-              flutterDevPkg
             ];
+            shellHook = ''
+              export PATH=${flutterDevPkg.outPath}/bin:$PATH
+            '';
           };
       });
 }
